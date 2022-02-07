@@ -22,26 +22,26 @@ def main(config):
     logger = config.get_logger('train')
 
     # setup data_loader instances
-    data_loader = config.init_obj('data_loader', module_data)
-    valid_data_loader = data_loader.split_validation()
+    data_loader = config.init_obj('data_loader', module_data) # MnistDataLoader
+    valid_data_loader = data_loader.split_validation() # 샘플링된 valid set의 data loader
 
     # build model architecture, then print to console
-    model = config.init_obj('arch', module_arch)
+    model = config.init_obj('arch', module_arch) # MnistModel
     logger.info(model)
 
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(config['n_gpu'])
     model = model.to(device)
-    if len(device_ids) > 1:
-        model = torch.nn.DataParallel(model, device_ids=device_ids)
+    if len(device_ids) > 1: # 가용 gpu가 1개 이상
+        model = torch.nn.DataParallel(model, device_ids=device_ids) # 나머지 gpu로 병렬처리
 
     # get function handles of loss and metrics
-    criterion = getattr(module_loss, config['loss'])
-    metrics = [getattr(module_metric, met) for met in config['metrics']]
+    criterion = getattr(module_loss, config['loss']) # nll_loss
+    metrics = [getattr(module_metric, met) for met in config['metrics']] # [accuracy, top_k_acc]
 
     # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
-    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = config.init_obj('optimizer', torch.optim, trainable_params)
+    trainable_params = filter(lambda p: p.requires_grad, model.parameters()) # grad 계산할 param
+    optimizer = config.init_obj('optimizer', torch.optim, trainable_params) # Adam으로 trainable_params 최적화
     lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer)
 
     trainer = Trainer(model, criterion, metrics, optimizer,

@@ -25,9 +25,9 @@ class Trainer(BaseTrainer):
         self.valid_data_loader = valid_data_loader
         self.do_validation = self.valid_data_loader is not None
         self.lr_scheduler = lr_scheduler
-        self.log_step = int(np.sqrt(data_loader.batch_size))
+        self.log_step = int(np.sqrt(data_loader.batch_size)) # batch size의 제곱근
 
-        self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
+        self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer) # loss, accuracy, top_k_acc
         self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
     def _train_epoch(self, epoch):
@@ -44,28 +44,28 @@ class Trainer(BaseTrainer):
 
             self.optimizer.zero_grad()
             output = self.model(data)
-            loss = self.criterion(output, target)
-            loss.backward()
+            loss = self.criterion(output, target) # loss 측정
+            loss.backward() 
             self.optimizer.step()
 
-            self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-            self.train_metrics.update('loss', loss.item())
+            self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx) # epoch * len(dataloader) + batch
+            self.train_metrics.update('loss', loss.item()) # loss update
             for met in self.metric_ftns:
-                self.train_metrics.update(met.__name__, met(output, target))
+                self.train_metrics.update(met.__name__, met(output, target)) # accuracy, top_k_acc update
 
-            if batch_idx % self.log_step == 0:
-                self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
-                    epoch,
-                    self._progress(batch_idx),
-                    loss.item()))
-                self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+            if batch_idx % self.log_step == 0: # 
+                self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format( # logging
+                    epoch, # 현재 epoch
+                    self._progress(batch_idx), # 현재 몇번째 batch인지
+                    loss.item())) # loss 값 
+                self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True)) # log_step마다 writer.add_image
 
             if batch_idx == self.len_epoch:
                 break
         log = self.train_metrics.result()
 
         if self.do_validation:
-            val_log = self._valid_epoch(epoch)
+            val_log = self._valid_epoch(epoch) # 해당 epoch의 metric의 평균
             log.update(**{'val_'+k : v for k, v in val_log.items()})
 
         if self.lr_scheduler is not None:
@@ -88,7 +88,7 @@ class Trainer(BaseTrainer):
                 output = self.model(data)
                 loss = self.criterion(output, target)
 
-                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
+                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, mode = 'valid')
                 self.valid_metrics.update('loss', loss.item())
                 for met in self.metric_ftns:
                     self.valid_metrics.update(met.__name__, met(output, target))
@@ -99,7 +99,7 @@ class Trainer(BaseTrainer):
             self.writer.add_histogram(name, p, bins='auto')
         return self.valid_metrics.result()
 
-    def _progress(self, batch_idx):
+    def _progress(self, batch_idx): # 한 epoch에서의 진행률
         base = '[{}/{} ({:.0f}%)]'
         if hasattr(self.data_loader, 'n_samples'):
             current = batch_idx * self.data_loader.batch_size
